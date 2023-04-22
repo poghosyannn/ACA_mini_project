@@ -1,0 +1,40 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.linear_model import LogisticRegression
+
+
+data = pd.read_csv('hospital_deaths_train.csv')
+
+target_corr = data.corr().abs()['MechVentLast8Hour']
+sorted_corr = target_corr.sort_values(ascending=False)
+last8cor = sorted_corr[:20].index.tolist()
+
+elements_to_remove = ['PaO2_first', 'MechVentDuration','UrineOutputSum','HR_first', 'Albumin_last', 'Albumin_first', 'In-hospital_death','Temp_last','GCS_first']
+last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
+
+new = data.dropna(subset=['MechVentLast8Hour'], inplace=False)
+new = new[last8cor]
+new = new.fillna(new.median())
+
+new2 = data[data['MechVentLast8Hour'].isna()]
+new2 = new2[last8cor]
+new2.iloc[:, 1:] = new2.iloc[:, 1:].fillna(new2.iloc[:, 1:].median())
+
+clf = LogisticRegression(max_iter=500)
+
+new_l = new['MechVentLast8Hour']
+new_f = new.drop(['MechVentLast8Hour'], axis = 1)
+
+new2_f = new2.drop(['MechVentLast8Hour'], axis = 1)
+new2_l = new2['MechVentLast8Hour']
+
+clf.fit(new_f, new_l)
+preds = clf.predict(new2_f
+
+s = pd.Series(preds)
+s.index = new2.index
+
+data = pd.read_csv('hospital_deaths_train.csv')
+data['MechVentLast8Hour'] = data['MechVentLast8Hour'].fillna(s)
