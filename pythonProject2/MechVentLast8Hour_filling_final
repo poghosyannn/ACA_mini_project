@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.impute import KNNImputer
+import xgboost as xgb
+from sklearn.linear_model import LogisticRegression
+
 
 data = pd.read_csv('hospital_deaths_train.csv')
 data = data.drop(['recordid'], axis = 1)
@@ -39,7 +42,7 @@ for col in cols_to_impute:
         data[col] = imputer.fit_transform(data[top_cols])[ :,0]
         
 
-
+#Getting the most correlated features
 target_corr = data.corr().abs()['MechVentLast8Hour']
 sorted_corr = target_corr.sort_values(ascending=False)
 last8cor = sorted_corr[:30].index.tolist()
@@ -47,16 +50,15 @@ last8cor = sorted_corr[:30].index.tolist()
 elements_to_remove =['UrineOutputSum', 'MechVentDuration']
 last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
 
-
+#Keeping only these features for prediction
 new = data.dropna(subset=['MechVentLast8Hour'], inplace=False)
 new = new[last8cor]
 
+#Subsetting to get the rows with NaN MechVentLast8Hour
 new2 = data[data['MechVentLast8Hour'].isna()]
 new2 = new2[last8cor]
 
-
-
-from sklearn.linear_model import LogisticRegression
+#Making the preciction using Logistic Regression
 clf = LogisticRegression(max_iter=500)
 
 new_l = new['MechVentLast8Hour']
@@ -68,7 +70,7 @@ new2_l = new2['MechVentLast8Hour']
 clf.fit(new_f, new_l)
 preds = clf.predict(new2_f)
 
-
+#Filling the data with the result
 s = pd.Series(preds)
 s.index = new2.index
 
@@ -76,3 +78,40 @@ data = pd.read_csv('hospital_deaths_train.csv')
 data = data.drop(['recordid'], axis = 1)
 
 data['MechVentLast8Hour'] = data['MechVentLast8Hour'].fillna(s)
+
+
+
+#Getting the most correlated features with MechVentDuration
+target_corr = data.corr().abs()['MechVentDuration']
+sorted_corr = target_corr.sort_values(ascending=False)
+last8cor = sorted_corr[:30].index.tolist()
+
+elements_to_remove =['UrineOutputSum']
+last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
+
+#Leaving out NaN's for prediction
+new = data.dropna(subset=['MechVentDuration'], inplace=False)
+new = new[last8cor]
+
+#Rows with NaN values
+new2 = data[data['MechVentDuration'].isna()]
+new2 = new2[last8cor]
+
+#Making the regression using XGBoost
+clf = xgb.XGBRegressor(objective ='reg:squarederror', colsample_bytree = 0.3, learning_rate = 0.07,
+                max_depth = 3, alpha = 10, n_estimators = 150)
+
+new_l = new['MechVentDuration']
+new_f = new.drop(['MechVentDuration'], axis = 1)
+
+new2_f = new2.drop(['MechVentDuration'], axis = 1)
+new2_l = new2['MechVentDuration']
+
+clf.fit(new_f, new_l)
+preds = clf.predict(new2_f)
+
+#Filling out the data one more time
+s = pd.Series(preds)
+s.index = new2.index
+
+data['MechVentDuration'] = data['MechVentDuration'].fillna(s)
