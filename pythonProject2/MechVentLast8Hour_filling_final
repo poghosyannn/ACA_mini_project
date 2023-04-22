@@ -1,0 +1,78 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.impute import KNNImputer
+
+data = pd.read_csv('hospital_deaths_train.csv')
+data = data.drop(['recordid'], axis = 1)
+
+
+corr_threshold = 0.05
+
+corr_with_target = data.corr()['In-hospital_death']
+
+cols_to_impute = corr_with_target[(corr_with_target < corr_threshold) & (corr_with_target > -corr_threshold)].index.tolist()
+
+imputer = KNNImputer(n_neighbors=5)
+data[cols_to_impute] = imputer.fit_transform(data[cols_to_impute])
+
+
+
+corr_threshold = 0.05
+
+# Get the correlation between each feature and the target column
+corr_with_target = data.corr()['In-hospital_death'].abs()
+
+# Get the columns whose correlation with the target column is higher than the threshold
+cols_to_impute = corr_with_target[corr_with_target > corr_threshold].index.tolist()
+cols_to_impute.remove('In-hospital_death')
+
+# Create a KNNImputer object with n_neighbors=10
+imputer = KNNImputer(n_neighbors=5)
+
+# Fill the NaN values for each column based on the ten highest correlated columns with that column
+for col in cols_to_impute:
+    if col not in ['CSRU', 'MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum']:
+        corr_with_col = data.corr()[col].abs()
+        top_cols = corr_with_col.sort_values(ascending=False).iloc[1:11].index.tolist()
+        data[col] = imputer.fit_transform(data[top_cols])[ :,0]
+        
+
+
+target_corr = data.corr().abs()['MechVentLast8Hour']
+sorted_corr = target_corr.sort_values(ascending=False)
+last8cor = sorted_corr[:30].index.tolist()
+
+elements_to_remove =['UrineOutputSum', 'MechVentDuration']
+last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
+
+
+new = data.dropna(subset=['MechVentLast8Hour'], inplace=False)
+new = new[last8cor]
+
+new2 = data[data['MechVentLast8Hour'].isna()]
+new2 = new2[last8cor]
+
+
+
+from sklearn.linear_model import LogisticRegression
+clf = LogisticRegression(max_iter=500)
+
+new_l = new['MechVentLast8Hour']
+new_f = new.drop(['MechVentLast8Hour'], axis = 1)
+
+new2_f = new2.drop(['MechVentLast8Hour'], axis = 1)
+new2_l = new2['MechVentLast8Hour']
+
+clf.fit(new_f, new_l)
+preds = clf.predict(new2_f)
+
+
+s = pd.Series(preds)
+s.index = new2.index
+
+data = pd.read_csv('hospital_deaths_train.csv')
+data = data.drop(['recordid'], axis = 1)
+
+data['MechVentLast8Hour'] = data['MechVentLast8Hour'].fillna(s)
