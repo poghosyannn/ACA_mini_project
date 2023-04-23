@@ -115,3 +115,37 @@ s = pd.Series(preds)
 s.index = new2.index
 
 data['MechVentDuration'] = data['MechVentDuration'].fillna(s)
+
+
+
+sorted_corr = target_corr.sort_values(ascending=False)
+last8cor = sorted_corr[:20].index.tolist()
+
+elements_to_remove =['In-hospital_death']
+last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
+
+new = data.dropna(subset=['UrineOutputSum'], inplace=False)
+new = new[last8cor]
+
+new2 = data[data['UrineOutputSum'].isna()]
+new2 = new2[last8cor]
+
+
+clf = xgb.XGBRegressor(objective ='reg:squarederror', colsample_bytree = 0.3, learning_rate = 0.07,
+                max_depth = 3, alpha = 10, n_estimators = 150)
+
+
+new_l = new['UrineOutputSum']
+new_f = new.drop(['UrineOutputSum'], axis = 1)
+
+new2_f = new2.drop(['UrineOutputSum'], axis = 1)
+new2_l = new2['UrineOutputSum']
+
+clf.fit(new_f, new_l)
+preds = clf.predict(new2_f)
+preds = preds.astype(int)
+
+s = pd.Series(preds)
+s.index = new2.index
+
+data['UrineOutputSum'] = data['UrineOutputSum'].fillna(s)
