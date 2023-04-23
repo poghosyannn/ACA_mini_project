@@ -1,40 +1,195 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.svm import SVC
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier, VotingClassifier
+from sklearn.impute import KNNImputer
+
+from sklearn.model_selection import train_test_split
+
+from sklearn.metrics import recall_score, precision_score, f1_score, roc_curve, roc_auc_score, matthews_corrcoef, confusion_matrix
+
+from sklearn.preprocessing import RobustScaler
+
+!pip install imblearn
+from imblearn.over_sampling import SMOTE
 
 
-data = pd.read_csv('hospital_deaths_train.csv')
+df = pd.read_csv('hospital_deaths_train.csv')
+df = df.drop('recordid', axis=1)
+print(df.shape)
+df
 
-target_corr = data.corr().abs()['MechVentLast8Hour']
-sorted_corr = target_corr.sort_values(ascending=False)
-last8cor = sorted_corr[:20].index.tolist()
+X = df.drop('In-hospital_death', axis=1)
+y = df['In-hospital_death']
 
-elements_to_remove = ['PaO2_first', 'MechVentDuration','UrineOutputSum','HR_first', 'Albumin_last', 'Albumin_first', 'In-hospital_death','Temp_last','GCS_first']
-last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+df_train = pd.concat([X_train, y_train], axis=1)
 
-new = data.dropna(subset=['MechVentLast8Hour'], inplace=False)
-new = new[last8cor]
-new = new.fillna(new.median())
+pd.set_option('display.max_columns', 160)
+pd.set_option('display.max_rows', 160)
 
-new2 = data[data['MechVentLast8Hour'].isna()]
-new2 = new2[last8cor]
-new2.iloc[:, 1:] = new2.iloc[:, 1:].fillna(new2.iloc[:, 1:].median())
+binary_cols = []
+for col in df_train.columns:
+    unique_vals = df[col].unique()
+    if len(unique_vals) <= 3:
+        binary_cols.append(col)
 
-clf = LogisticRegression(max_iter=500)
+print("Binary columns:", binary_cols)
 
-new_l = new['MechVentLast8Hour']
-new_f = new.drop(['MechVentLast8Hour'], axis = 1)
 
-new2_f = new2.drop(['MechVentLast8Hour'], axis = 1)
-new2_l = new2['MechVentLast8Hour']
+cols_to_impute_binary = binary_cols
 
-clf.fit(new_f, new_l)
-preds = clf.predict(new2_f
+imputer_binary = KNNImputer(n_neighbors=5)
 
-s = pd.Series(preds)
-s.index = new2.index
+if 'In-hospital_death' in cols_to_impute_binary:
+    cols_to_impute_binary.remove('In-hospital_death')
+if 'MechVentLast8Hour' in cols_to_impute_binary:
+    cols_to_impute_binary.remove('MechVentLast8Hour')
+    
+df_train[cols_to_impute_binary] = imputer_binary.fit_transform(df_train[cols_to_impute_binary])
 
-data = pd.read_csv('hospital_deaths_train.csv')
-data['MechVentLast8Hour'] = data['MechVentLast8Hour'].fillna(s)
+imputer_binary.fit(df_train[cols_to_impute_binary])
+
+
+
+
+
+
+corr_threshold = 0.05
+
+corr_with_target = df_train.corr()['In-hospital_death']
+
+cols_to_impute_less = corr_with_target[(corr_with_target < corr_threshold) & (corr_with_target > -corr_threshold)].index.tolist()
+cols_to_impute_less = [col for col in cols_to_impute_less if col not in binary_cols]
+# imputer = KNNImputer(n_neighbors=5)
+# df[cols_to_impute] = imputer.fit_transform(df[cols_to_impute])
+
+imputer_less = KNNImputer(n_neighbors=5)
+
+# Fill the NaN values for each column based on the ten highest correlated columns with that column
+for col in cols_to_impute_less:
+    if df_train[col].isna().sum() != 0 and col not in ['MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum']:
+    #if col not in binary_cols and col not in ['MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum']:
+        corr_with_col = df_train.corr()[col].abs()
+        top_cols = corr_with_col.sort_values(ascending=False).iloc[1:11].index.tolist()
+        df_train[col] = imputer_less.fit_transform(df_train[top_cols])[:, 0]
+        
+        
+imputer_less.fit(df_train[cols_to_impute_less])
+
+
+
+
+
+
+
+corr_threshold = 0.05
+
+# Get the correlation between each feature and the target column
+corr_with_target = df_train.corr()['In-hospital_death'].abs()
+
+# Get the columns whose correlation with the target column is higher than the threshold
+cols_to_impute_more = corr_with_target[corr_with_target > corr_threshold].index.tolist()
+cols_to_impute_more = [col for col in cols_to_impute_more if col not in binary_cols]
+cols_to_impute_more.remove('In-hospital_death')
+
+# Create a KNNImputer object with n_neighbors=10
+imputer_more = KNNImputer(n_neighbors=5)
+
+# Fill the NaN values for each column based on the ten highest correlated columns with that column
+for col in cols_to_impute_more:
+    if df_train[col].isna().sum() != 0 and col not in ['MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum']:
+    #if col not in binary_cols and col not in ['MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum']:
+        corr_with_col = X_train.corr()[col].abs()
+        top_cols = corr_with_col.sort_values(ascending=False).iloc[1:11].index.tolist()
+        df_train[col] = imputer_more.fit_transform(df_train[top_cols])[:, 0]
+
+imputer_more.fit(df_train[cols_to_impute_more])
+
+
+
+
+
+
+
+
+corr_with_target = df_train.corr()['In-hospital_death'].abs()
+
+# Get the columns whose correlation with the target column is higher than the threshold
+#corr_with_target = df.corr()['In-hospital_death'].abs()
+cols_to_impute_3 = ['MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum']        #corr_with_target[corr_with_target > corr_threshold].index.tolist()
+
+imputer_3 = KNNImputer(n_neighbors=5)
+ddff = df_train.drop('In-hospital_death', axis=1).copy()
+for col in cols_to_impute_3:
+    #ddff = df.drop('In-hospital_death', inplace=False)
+    corr_with_col = ddff.corr()[col].abs()
+    top_cols = corr_with_col.sort_values(ascending=False).iloc[3:20].index.tolist()
+    ddff[col] = imputer_3.fit_transform(ddff[top_cols])[:, 0]
+    df_train[col] = ddff[col]
+
+imputer_3.fit(df_train[cols_to_impute_3])
+
+
+
+
+
+
+
+
+X_train = df_train.drop('In-hospital_death', axis=1)
+y_train = df_train['In-hospital_death']
+
+
+# Split the dataframe into features and target variables
+X_train = X_train.drop(binary_cols, axis=1)  # Select only the columns to be scaled
+if 'In-hospital_death' in X_train:
+    X_train = X_train.drop(['In-hospital_death'], axis=1)
+#y = df['In-hospital_death']
+
+# Apply RobustScaler to the features
+scaler = RobustScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+
+# Reconstruct the dataframe with the scaled columns
+scaled_X_train = pd.DataFrame(X_train_scaled, columns=X_train.columns)
+print(scaled_X_train.shape)
+print(df_train[binary_cols].shape)
+scaled_X_train = pd.concat([scaled_X_train, df_train[binary_cols]], axis=1)
+# Print the scaled dataframe
+scaled_X_train
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
