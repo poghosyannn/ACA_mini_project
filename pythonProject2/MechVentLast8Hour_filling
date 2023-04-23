@@ -203,7 +203,9 @@ X_test_final = pd.concat([X_test_scaled, X_test[binary_cols]], axis=1)
 
 y_prob = clf.predict_proba(X_test)
 
-
+cm = confusion_matrix(y_test, y_pred)
+print("Confusion Matrix:")
+print(cm)
 
 
 
