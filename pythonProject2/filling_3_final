@@ -74,9 +74,6 @@ preds = clf.predict(new2_f)
 s = pd.Series(preds)
 s.index = new2.index
 
-data = pd.read_csv('hospital_deaths_train.csv')
-data = data.drop(['recordid'], axis = 1)
-
 data['MechVentLast8Hour'] = data['MechVentLast8Hour'].fillna(s)
 
 
