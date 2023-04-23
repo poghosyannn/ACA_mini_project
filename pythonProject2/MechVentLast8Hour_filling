@@ -1,48 +1,26 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
-from sklearn.svm import SVC
-from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier, VotingClassifier
-from sklearn.impute import KNNImputer
-
-from sklearn.model_selection import train_test_split
-
-from sklearn.metrics import recall_score, precision_score, f1_score, roc_curve, roc_auc_score, matthews_corrcoef, confusion_matrix
-
-from sklearn.preprocessing import RobustScaler
-
-!pip install imblearn
-from imblearn.over_sampling import SMOTE
-
-
 df = pd.read_csv('hospital_deaths_train.csv')
 df = df.drop('recordid', axis=1)
 print(df.shape)
 df
 
+
 X = df.drop('In-hospital_death', axis=1)
 y = df['In-hospital_death']
-
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 df_train = pd.concat([X_train, y_train], axis=1)
+df_train
 
 pd.set_option('display.max_columns', 160)
 pd.set_option('display.max_rows', 160)
+df.corr()
 
 binary_cols = []
-for col in df_train.columns:
-    unique_vals = df[col].unique()
+for col in X_train.columns:
+    unique_vals = X_train[col].unique()
     if len(unique_vals) <= 3:
         binary_cols.append(col)
 
 print("Binary columns:", binary_cols)
-
 
 cols_to_impute_binary = binary_cols
 
@@ -50,15 +28,14 @@ imputer_binary = KNNImputer(n_neighbors=5)
 
 if 'In-hospital_death' in cols_to_impute_binary:
     cols_to_impute_binary.remove('In-hospital_death')
-if 'MechVentLast8Hour' in cols_to_impute_binary:
-    cols_to_impute_binary.remove('MechVentLast8Hour')
+# if 'MechVentLast8Hour' in cols_to_impute_binary:
+#     cols_to_impute_binary.remove('MechVentLast8Hour')
     
 df_train[cols_to_impute_binary] = imputer_binary.fit_transform(df_train[cols_to_impute_binary])
 
 imputer_binary.fit(df_train[cols_to_impute_binary])
 
-
-
+print(cols_to_impute_binary)
 
 
 
@@ -86,10 +63,6 @@ imputer_less.fit(df_train[cols_to_impute_less])
 
 
 
-
-
-
-
 corr_threshold = 0.05
 
 # Get the correlation between each feature and the target column
@@ -113,18 +86,11 @@ for col in cols_to_impute_more:
 
 imputer_more.fit(df_train[cols_to_impute_more])
 
-
-
-
-
-
-
-
 corr_with_target = df_train.corr()['In-hospital_death'].abs()
 
 # Get the columns whose correlation with the target column is higher than the threshold
 #corr_with_target = df.corr()['In-hospital_death'].abs()
-cols_to_impute_3 = ['MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum']        #corr_with_target[corr_with_target > corr_threshold].index.tolist()
+cols_to_impute_3 = ['MechVentDuration', 'UrineOutputSum']        #corr_with_target[corr_with_target > corr_threshold].index.tolist()
 
 imputer_3 = KNNImputer(n_neighbors=5)
 ddff = df_train.drop('In-hospital_death', axis=1).copy()
@@ -138,36 +104,49 @@ for col in cols_to_impute_3:
 imputer_3.fit(df_train[cols_to_impute_3])
 
 
-
-
-
-
-
-
 X_train = df_train.drop('In-hospital_death', axis=1)
 y_train = df_train['In-hospital_death']
 
+binar_df = df_train[binary_cols]
+binar_df = binar_df.reset_index(drop=True)
 
 # Split the dataframe into features and target variables
 X_train = X_train.drop(binary_cols, axis=1)  # Select only the columns to be scaled
-if 'In-hospital_death' in X_train:
-    X_train = X_train.drop(['In-hospital_death'], axis=1)
-#y = df['In-hospital_death']
+print(X_train.shape)
+# if 'In-hospital_death' in X_train:
+#     X_train = X_train.drop(['In-hospital_death'], axis=1)
+#                         y = df_train['In-hospital_death']
 
 # Apply RobustScaler to the features
 scaler = RobustScaler()
 X_train_scaled = scaler.fit_transform(X_train)
-
+X_train_for_scale = X_train.reset_index(drop=True)
 # Reconstruct the dataframe with the scaled columns
-scaled_X_train = pd.DataFrame(X_train_scaled, columns=X_train.columns)
-print(scaled_X_train.shape)
-print(df_train[binary_cols].shape)
-scaled_X_train = pd.concat([scaled_X_train, df_train[binary_cols]], axis=1)
+scaled_X_train = pd.DataFrame(X_train_scaled, columns=X_train_for_scale.columns)
+# print(scaled_X_train.shape)
+# print(df_train[binary_cols].shape)
+scaled_X_train = pd.concat([scaled_X_train, binar_df], axis=1)
 # Print the scaled dataframe
+# scaled_X_train
 scaled_X_train
 
 
 
+y_train = y_train.reset_index(drop=True)
+
+
+
+# # Separate majority and minority classes
+# majority_class = df[df['target'] == 0]
+# minority_class = df[df['target'] == 1]
+#X = scaled_df.drop('In-hospital_death', axis=1)
+#y = df['In-hospital_death']
+# Apply SMOTE to minority class
+sm = SMOTE(random_state=42)
+balanced_X_train, balanced_y_train = sm.fit_resample(scaled_X_train, y_train)
+
+# # Combine majority class with SMOTE-generated minority class
+#balanced_df = pd.concat([majority_class, X_resampled[y_resampled==1]])
 
 
 
@@ -178,6 +157,51 @@ scaled_X_train
 
 
 
+# create SVM classifier with RBF kernel
+clf = SVC(kernel='rbf', probability=True)
+
+# train the classifier on the training data
+clf.fit(balanced_X_train, balanced_y_train)
+
+# make predictions on the test data
+#y_pred = clf.predict(X_t)
+
+
+
+#test_pred = y_test['In-hospital_death']
+
+if 'recordid' in X_test.columns:
+    X_test = X_test.drop(['recordid'], axis = 'columns')
+
+
+for key in X_test.keys():
+    if key not in balanced_X_train.keys():        
+        X_test = X_test.drop([key], axis = 'columns')
+
+for key in balanced_X_train.keys():
+    if key not in X_test.keys():
+        X_test[f'{key}'] = np.nan
+        
+        
+        
+   
+
+X_test[cols_to_impute_binary] = imputer_binary.transform(X_test[cols_to_impute_binary])
+X_test[cols_to_impute_less] = imputer_less.transform(X_test[cols_to_impute_less])
+X_test[cols_to_impute_more] = imputer_more.transform(X_test[cols_to_impute_more])
+X_test[cols_to_impute_3] = imputer_3.transform(X_test[cols_to_impute_3])
+#X_test = scaler.transform(X_test)
+
+X_test_scaled_1 = X_test.drop(binary_cols, axis=1)
+X_test_scaled = scaler.transform(X_test_scaled_1)
+
+X_test_scaled = pd.DataFrame(X_test_scaled, columns=X_test_scaled_1.columns)
+
+X_test = X_test.reset_index(drop=True)
+
+X_test_final = pd.concat([X_test_scaled, X_test[binary_cols]], axis=1)
+
+y_prob = clf.predict_proba(X_test)
 
 
 
