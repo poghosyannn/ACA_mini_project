@@ -117,7 +117,7 @@ s.index = new2.index
 data['MechVentDuration'] = data['MechVentDuration'].fillna(s)
 
 
-
+target_corr = data.corr().abs()['UrineOutputSum']
 sorted_corr = target_corr.sort_values(ascending=False)
 last8cor = sorted_corr[:20].index.tolist()
 
