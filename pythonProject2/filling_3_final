@@ -47,7 +47,7 @@ target_corr = data.corr().abs()['MechVentLast8Hour']
 sorted_corr = target_corr.sort_values(ascending=False)
 last8cor = sorted_corr[:30].index.tolist()
 
-elements_to_remove =['UrineOutputSum', 'MechVentDuration']
+elements_to_remove =['UrineOutputSum', 'MechVentDuration', 'In-hospital_death']
 last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
 
 #Keeping only these features for prediction
@@ -86,7 +86,7 @@ target_corr = data.corr().abs()['MechVentDuration']
 sorted_corr = target_corr.sort_values(ascending=False)
 last8cor = sorted_corr[:30].index.tolist()
 
-elements_to_remove =['UrineOutputSum']
+elements_to_remove =['UrineOutputSum', 'In-hospital_death']
 last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
 
 #Leaving out NaN's for prediction
