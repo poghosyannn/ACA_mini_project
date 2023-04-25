@@ -1,3 +1,22 @@
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
+
+
+svmrbf = SVC(kernel = 'rbf', C=6, gamma=0.02, probability=False)
+svmpol = SVC(kernel = 'poly')
+rndfr = RandomForestClassifier(n_estimators=300)
+logr = LogisticRegression(C=0.5, penalty = 'l1', solver = 'saga')
+qda = QuadraticDiscriminantAnalysis()
+ada = AdaBoostClassifier(n_estimators=230)
+
+voting = VotingClassifier(estimators= [('svmrbf', svmrbf), ('svmpol', svmpol), ('rndfr', rndfr), ('logr', logr), 
+                                       ('qda', qda), ('ada', ada)], voting = 'hard')
+
+
 df = pd.read_csv('hospital_deaths_train.csv')
 df = df.drop('recordid', axis=1)
 X = df.drop('In-hospital_death', axis=1)
@@ -79,6 +98,7 @@ last8cor = sorted_corr[:30].index.tolist()
 
 elements_to_remove = ['UrineOutputSum', 'MechVentDuration', 'In-hospital_death']
 last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
+l8cor = last8cor.copy()
 
 # Keeping only these features for prediction
 new = df_train.dropna(subset=['MechVentLast8Hour'], inplace=False)
@@ -115,6 +135,9 @@ last8cor = sorted_corr[:30].index.tolist()
 elements_to_remove = ['UrineOutputSum', 'In-hospital_death']
 last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
 
+durcor = last8cor.copy()
+
+
 # Leaving out NaN's for prediction
 new = df_train.dropna(subset=['MechVentDuration'], inplace=False)
 new = new[last8cor]
@@ -148,8 +171,11 @@ target_corr = df_train.corr().abs()['UrineOutputSum']
 sorted_corr = target_corr.sort_values(ascending=False)
 last8cor = sorted_corr[:20].index.tolist()
 
+
 elements_to_remove = ['In-hospital_death']
 last8cor = list(filter(lambda x: x not in elements_to_remove, last8cor))
+
+urcor = last8cor.copy()
 
 new = df_train.dropna(subset=['UrineOutputSum'], inplace=False)
 new = new[last8cor]
@@ -212,3 +238,71 @@ for col, fill_val in binary_medians.items():
 
 X_test[cols_to_impute_less] = imputer_less.transform(X_test[cols_to_impute_less])
 X_test[cols_to_impute_more] = imputer_more.transform(X_test[cols_to_impute_more])
+
+
+
+
+
+#filling last three features in test dataset
+new2dur = X_test[X_test['MechVentDuration'].isna()]
+new2dur = new2dur[durcor]
+
+new2l8 = X_test[X_test['MechVentLast8Hour'].isna()]
+new2l8 = new2l8[l8cor]
+
+new2ur = X_test[X_test['UrineOutputSum'].isna()]
+new2ur = new2ur[urcor]
+
+
+
+new2_f_dur = new2dur.drop(['MechVentDuration'], axis=1)
+new2_l_dur = new2dur['MechVentDuration']
+
+new2_f_l8 = new2l8.drop(['MechVentLast8Hour'], axis=1)
+new2_l_l8 = new2l8['MechVentLast8Hour']
+
+new2_f_ur = new2ur.drop(['UrineOutputSum'], axis=1)
+new2_l_ur = new2ur['UrineOutputSum']
+
+
+ur_preds = clf_Urine.predict(new2_f_ur)
+l8_preds = clf_Last8.predict(new2_f_l8)
+dur_preds = clf_Duration.predict(new2_f_dur)
+
+
+s = pd.Series(l8_preds)
+s.index = new2l8.index
+
+X_test['MechVentLast8Hour'] = X_test['MechVentLast8Hour'].fillna(s)
+
+
+s = pd.Series(ur_preds)
+s.index = new2ur.index
+
+X_test['UrineOutputSum'] = X_test['UrineOutputSum'].fillna(s)
+
+
+s = pd.Series(dur_preds)
+s.index = new2dur.index
+
+X_test['MechVentDuration'] = X_test['MechVentDuration'].fillna(s)
+
+
+X_test = pd.DataFrame(scaler.transform(X_test), columns = c.columns)
+
+
+
+from sklearn.metrics import accuracy_score, recall_score, precision_score, roc_auc_score, matthews_corrcoef
+
+accuracy = accuracy_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+specificity = precision_score(y_test, y_pred)
+auc = roc_auc_score(y_test, y_pred)
+mcc = matthews_corrcoef(y_test, y_pred)
+
+# Print the evaluation metrics
+print('Accuracy score:', accuracy)
+print('Recall score:', recall)
+print('Specificity score:', specificity)
+print('AUC score:', auc)
+print('MCC score:', mcc)
