@@ -89,7 +89,7 @@ new2 = df_train[df_train['MechVentLast8Hour'].isna()]
 new2 = new2[last8cor]
 
 # Making the preciction using Logistic Regression
-clf = LogisticRegression(max_iter=1500)
+clf_Last8 = LogisticRegression(max_iter=1500)
 
 new_l = new['MechVentLast8Hour']
 new_f = new.drop(['MechVentLast8Hour'], axis=1)
@@ -97,8 +97,8 @@ new_f = new.drop(['MechVentLast8Hour'], axis=1)
 new2_f = new2.drop(['MechVentLast8Hour'], axis=1)
 new2_l = new2['MechVentLast8Hour']
 
-clf.fit(new_f, new_l)
-preds = clf.predict(new2_f)
+clf_Last8.fit(new_f, new_l)
+preds = clf_Last8.predict(new2_f)
 
 # Filling the data with the result
 s = pd.Series(preds)
@@ -124,7 +124,7 @@ new2 = df_train[df_train['MechVentDuration'].isna()]
 new2 = new2[last8cor]
 
 # Making the prediction using XGBoost
-clf = xgb.XGBRegressor(objective='reg:squarederror', colsample_bytree=0.3, learning_rate=0.07,
+clf_Duration = xgb.XGBRegressor(objective='reg:squarederror', colsample_bytree=0.3, learning_rate=0.07,
                        max_depth=3, alpha=10, n_estimators=150)
 
 new_l = new['MechVentDuration']
@@ -133,8 +133,8 @@ new_f = new.drop(['MechVentDuration'], axis=1)
 new2_f = new2.drop(['MechVentDuration'], axis=1)
 new2_l = new2['MechVentDuration']
 
-clf.fit(new_f, new_l)
-preds = clf.predict(new2_f)
+clf_Duration.fit(new_f, new_l)
+preds = clf_Duration.predict(new2_f)
 
 # Filling out the data one more time
 s = pd.Series(preds)
@@ -157,7 +157,7 @@ new = new[last8cor]
 new2 = df_train[df_train['UrineOutputSum'].isna()]
 new2 = new2[last8cor]
 
-clf = xgb.XGBRegressor(objective='reg:squarederror', colsample_bytree=0.3, learning_rate=0.07,
+clf_Urine = xgb.XGBRegressor(objective='reg:squarederror', colsample_bytree=0.3, learning_rate=0.07,
                        max_depth=3, alpha=10, n_estimators=150)
 
 new_l = new['UrineOutputSum']
@@ -166,8 +166,8 @@ new_f = new.drop(['UrineOutputSum'], axis=1)
 new2_f = new2.drop(['UrineOutputSum'], axis=1)
 new2_l = new2['UrineOutputSum']
 
-clf.fit(new_f, new_l)
-preds = clf.predict(new2_f)
+clf_Urine.fit(new_f, new_l)
+preds = clf_Urine.predict(new2_f)
 preds = preds.astype(int)
 
 s = pd.Series(preds)
