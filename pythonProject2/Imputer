@@ -175,7 +175,7 @@ s.index = new2.index
 
 df_train['UrineOutputSum'] = df_train['UrineOutputSum'].fillna(s)
 
-
+#Scaling the Data
 scaler = MinMaxScaler()
 y_train = df_train['In-hospital_death']
 X_train = df_train.drop('In-hospital_death', axis=1)
@@ -183,3 +183,10 @@ X_train_scaled = scaler.fit_transform(X_train)
 X_train_scaled = pd.DataFrame(X_train_scaled, columns = X_train.columns)
 df_train_scaled = pd.concat([y_train, X_train_scaled], axis=1)
 
+
+#Balancing the Data
+df_train_scaled_l = df_train_scaled['In-hospital_death']
+df_train_scaled_f = df_train_scaled.drop(['In-hospital_death'], axis = 1)
+sm = RandomOverSampler(random_state=42)
+balanced_train_f, balanced_train_l = sm.fit_resample(df_train_scaled_f, df_train_scaled_l)
+df_train_final = pd.concat([balanced_train_l, balanced_train_f], axis =1)
