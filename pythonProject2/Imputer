@@ -1,0 +1,41 @@
+corr_threshold = 0.05
+
+corr_with_target = df_train.corr()['In-hospital_death']
+
+cols_to_impute_less = corr_with_target[(corr_with_target < corr_threshold) & (corr_with_target > -corr_threshold)].index.tolist()
+
+for coll in ['CSRU', 'MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum', 'In-hospital_death']:
+    if coll in cols_to_impute_less:
+        cols_to_impute_less.remove(coll)
+        
+imputer_less = KNNImputer(n_neighbors=5)
+
+for col in cols_to_impute_less:
+    if df_train[col].isna().sum() != 0: 
+        corr_with_col = df_train.corr()[col].abs()
+        top_cols = corr_with_col.sort_values(ascending=False).iloc[1:11].index.tolist()
+        df_train[col] = imputer_less.fit_transform(df_train[top_cols])[:, 0]
+       
+imputer_less.fit(df_train[cols_to_impute_less])
+
+
+
+corr_threshold = 0.05
+
+corr_with_target = df_train.corr()['In-hospital_death'].abs()
+
+cols_to_impute_more = corr_with_target[corr_with_target > corr_threshold].index.tolist()
+
+for coll in ['CSRU', 'MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum', 'In-hospital_death']:
+    if coll in cols_to_impute_more:
+        cols_to_impute_more.remove(coll)
+
+imputer_more = KNNImputer(n_neighbors=5)
+
+for col in cols_to_impute_more:
+    if df_train[col].isna().sum() != 0:  
+        corr_with_col = X_train.corr()[col].abs()
+        top_cols = corr_with_col.sort_values(ascending=False).iloc[1:11].index.tolist()
+        df_train[col] = imputer_more.fit_transform(df_train[top_cols])[:, 0]
+
+imputer_more.fit(df_train[cols_to_impute_more])
