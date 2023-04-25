@@ -1,3 +1,22 @@
+binary_cols = []
+for col in df_train.columns:
+    unique_vals = df_train[col].unique()
+    if len(unique_vals) <= 3:
+        binary_cols.append(col)
+
+#print("Binary columns:", binary_cols)
+binary_cols = [col for col in binary_cols if col not in ['MechVentDuration', 'MechVentLast8Hour', 'UrineOutputSum', 'In-hospital_death']]
+       
+binary_medians = {}
+
+for col in binary_cols:
+    col_median = df_train[col].median(skipna=True)
+    #binary_medians.append(col_median)
+    df_train[col] = df_train[col].fillna(col_median)
+    binary_medians[col] = col_median
+
+
+
 X = df.drop('In-hospital_death', axis=1)
 y = df['In-hospital_death']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
