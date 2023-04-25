@@ -190,3 +190,25 @@ df_train_scaled_f = df_train_scaled.drop(['In-hospital_death'], axis = 1)
 sm = RandomOverSampler(random_state=42)
 balanced_train_f, balanced_train_l = sm.fit_resample(df_train_scaled_f, df_train_scaled_l)
 df_train_final = pd.concat([balanced_train_l, balanced_train_f], axis =1)
+
+y_train_final = df_train_final['In-hospital_death']
+X_train_final = df_train_final.drop('In-hospital_death', axis=1)
+
+if 'recordid' in X_test.columns:
+    X_test = X_test.drop(['recordid'], axis = 'columns')
+
+for key in X_test.keys():
+    if key not in X_train_final.keys():        
+        X_test = X_test.drop([key], axis = 'columns')
+
+for key in X_train_final.keys():
+    if key not in X_test.keys():
+        X_test[f'{key}'] = np.nan
+        
+        
+for col, fill_val in binary_medians.items():
+    if col in X_test.columns:
+        X_test[col].fillna(fill_val, inplace=True)
+
+X_test[cols_to_impute_less] = imputer_less.transform(X_test[cols_to_impute_less])
+X_test[cols_to_impute_more] = imputer_more.transform(X_test[cols_to_impute_more])
