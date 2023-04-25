@@ -1,3 +1,10 @@
+X = df.drop('In-hospital_death', axis=1)
+y = df['In-hospital_death']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+df_train = pd.concat([X_train, y_train], axis=1)
+
+
+
 corr_threshold = 0.05
 
 corr_with_target = df_train.corr()['In-hospital_death']
