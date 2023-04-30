@@ -8,9 +8,11 @@ class My_Pipeline:
             
             #Loading the data 
             data = pd.read_csv(data_path)
-            data = data.drop(['recordid'], axis = 1)
-            X = data.drop(columns=['In-hospital_death'])
+            if 'recordid' in data:
+                data = data.drop(['recordid'], axis = 1)
             y = data['In-hospital_death']
+            X = data.drop(columns=['In-hospital_death'])
+           
             
             # Preprocessing
             self.preprocessor.fit(X, y)
