@@ -2,38 +2,28 @@
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 import Preproccesing
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import recall_score, precision_score, confusion_matrix, roc_auc_score, f1_score, matthews_corrcoef
 
 
 class Model:
     def __init__(self):
-        self.voting = None
-        self.predict_proba = None
-        # self.predict = None
+        self.logr = None
 
     def fit(self, X_train, y_train):
-        svmrbf = SVC(kernel='rbf', C=6, gamma=0.02, probability=True)
-        rndfr = RandomForestClassifier(n_estimators=300)
-        logr = LogisticRegression(C=1, penalty='l2')
-        qda = QuadraticDiscriminantAnalysis()
-        ada = AdaBoostClassifier(n_estimators=230)
-
-        self.voting = VotingClassifier(estimators=[('svmrbf', svmrbf), ('rndfr', rndfr), ('logr', logr),
-                                              ('qda', qda), ('ada', ada)], voting='soft').fit(X_train, y_train)
+        self.logr = LogisticRegression(C=15, penalty='l2').fit(X_train, y_train)
 
     def predict(self, X_test):
-        # threshold = 0.4
-        predict = self.voting.predict(X_test)
-        # y_pred = (self.voting.predict_proba(X_test)[:, 1] >= threshold).astype(int)
-        return predict
+        threshold = 0.5
+        y_pred = self.logr.predict(X_test)
+        y_pred = (self.logr.predict_proba(X_test)[:, 1] >= threshold).astype(int)
 
-    # def predict_proba(self, X_test):
-    #     return self.voting.predict_proba(X_test)
+        return y_pred
+
+    def predict_proba(self, X_test):
+
+        return self.logr.predict_proba(X_test)
 
 
 df = pd.read_csv('hospital_deaths_train.csv')
@@ -51,9 +41,14 @@ y_train = preprocessor.balanced_Ytrain
 
 model = Model()
 model.fit(X_train, y_train)
-predictions = model.predict(X_test)
-print(predictions)
+Y_pred_proba = model.predict_proba(X_test)
+y_pred = model.predict(X_test)
 
-
-
-
+print(model.predict(X_test))
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
+print('Recall', recall_score(y_test, y_pred))
+print('precision', precision_score(y_test, y_pred))
+print('auc', roc_auc_score(y_test, y_pred))
+print('f1_score', f1_score(y_test, y_pred))
+print('MCC', matthews_corrcoef(y_test, y_pred))
